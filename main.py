@@ -142,7 +142,7 @@ if __name__ == "__main__":
     print("Proses Standarisasi dan PCA Selesai")
 
     # HYPERPARAMETER BEST THRESHOLD        
-    threshold_range = np.arange(40, 160, 5)
+    threshold_range = np.arange(90, 210, 5)
     best_score = -1  
     best_threshold = 0
     best_n_clusters = 0

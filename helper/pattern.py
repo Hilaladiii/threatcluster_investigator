@@ -41,7 +41,8 @@ attack_patterns = {
         r"(%252e|%2e%252e|%252e%2e)(%252f|%2f%252f)"
     ],
     'CMD_Injection': [
-        r"\b(ls|cat|whoami|ping)\b",
+        r"\b(ls|cat|whoami)\b", 
+        r"([;&|]|\?.*=|&.*=).*\b(ping|wget|curl|nmap|net)\b",
         r"(=|%3D|%253D).*(whoami|net(\s|%20|\+|%2B)user|cmd(\s|%20|\+|%2B)\/[ckr]|powershell|tasklist|wmic|ssh|python3?|ipconfig|wget|curl|certutil|copy(\s|%20|%2B)\\%5C\%5C|dsquery|nltest)"
     ],
     'File_Inclusion': [

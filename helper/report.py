@@ -6,7 +6,7 @@ def generate_report():
     output_path = os.path.join("output", "report.html")
     with open(output_path, "w", encoding="utf-8") as f:
         html_content = """
-        <!DOCTYPE html>
+       <!DOCTYPE html>
         <html lang="id">
         <head>
             <meta charset="UTF-8" />
@@ -47,31 +47,55 @@ def generate_report():
             }
             .filter-container {
                 margin-bottom: 15px;
+                gap: 15px;
+            }
+
+            /* Jika browser mendukung styling option, ini akan membuat opsi suspected berwarna merah.
+            Ini tidak mengubah warna elemen <select> itu sendiri. */
+            #clusterFilter option[data-suspected="1"] {
+                color: red;
+            }
+
+            /* Legend kecil */
+            .legend {
+                font-size: 13px;
+                color: #555;
+                margin-bottom: 8px;
+            }
+            .legend .warn {
+                color: red;
+                font-weight: 700;
+                margin-left: 6px;
             }
             </style>
         </head>
         <body>
             <div class="container">
             <div class="card">
-                <h3 class="text-center mb-4">📊 Hasil Clustering</h3>
+                <h3 class="text-center mb-2">📊 Hasil Clustering</h3>
 
-                <!-- Filter container -->
+                <div class="legend">
+                Keterangan: opsi cluster yang mengandung minimal 1 item
+                <strong>Suspected_As_An_Attack</strong> diberi tanda
+                <span class="warn">⚠</span>.
+                </div>
+
                 <div class="filter-container d-flex">
-                <!-- Filter cluster -->
-                <div class="d-flex">
+                <div class="d-flex align-items-center me-3">
                     <label class="me-2">Filter Cluster:</label>
                     <select id="clusterFilter" class="form-select w-auto">
                     <option value="">Semua</option>
                     </select>
                 </div>
 
-                <!-- Filter label -->
-                <div class="d-flex">
+                <div class="d-flex align-items-center">
                     <label class="me-2">Filter Label:</label>
                     <select id="labelFilter" class="form-select w-auto">
                     <option value="">Semua</option>
                     <option value="Normal">Normal</option>
-                    <option value="Suspected_As_An_Attack">Suspected_As_An_Attack</option>
+                    <option value="Suspected_As_An_Attack">
+                        Suspected_As_An_Attack
+                    </option>
                     </select>
                 </div>
                 </div>
@@ -100,7 +124,7 @@ def generate_report():
             <script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
             <script src="https://cdn.datatables.net/1.13.4/js/dataTables.bootstrap5.min.js"></script>
 
-            <!-- PapaParse untuk load CSV -->
+            <!-- PapaParse -->
             <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 
             <script>
@@ -109,8 +133,11 @@ def generate_report():
                 download: true,
                 header: true,
                 complete: function (results) {
-                    let table = $("#anomaliTable").DataTable({
-                    data: results.data,
+                    const data = results.data;
+
+                    // Inisialisasi DataTable
+                    const table = $("#anomaliTable").DataTable({
+                    data: data,
                     columns: [
                         { data: "ip" },
                         { data: "time" },
@@ -124,30 +151,65 @@ def generate_report():
                     scrollX: true,
                     });
 
-                    // --- Filter Cluster ---
-                    let clusters = [...new Set(results.data.map((row) => row.cluster))].filter(
-                    (c) => c !== undefined && c !== ""
-                    );
-                    clusters.forEach((c) => {
-                    $("#clusterFilter").append(
-                        `<option value="${c}">Cluster ${c}</option>`
-                    );
+                    // Hitung jumlah anggota dan tandai cluster yang punya suspected
+                    const clusterCounts = {};
+                    const clusterHasSuspected = {};
+
+                    data.forEach((row) => {
+                    const c = row.cluster;
+                    if (c === undefined || c === "") return;
+                    clusterCounts[c] = (clusterCounts[c] || 0) + 1;
+                    if (row.label === "Suspected_As_An_Attack") {
+                        clusterHasSuspected[c] = true;
+                    } else {
+                        clusterHasSuspected[c] = clusterHasSuspected[c] || false;
+                    }
                     });
 
+                    // Urutkan kunci cluster secara numerik bila bisa
+                    const clusterKeys = Object.keys(clusterCounts).sort((a, b) => {
+                    const na = Number(a),
+                        nb = Number(b);
+                    if (!isNaN(na) && !isNaN(nb)) return na - nb;
+                    return String(a).localeCompare(String(b));
+                    });
+
+                    // Isi dropdown cluster: tambahkan " ⚠" pada teks opsi jika cluster mengandung suspected
+                    clusterKeys.forEach((c) => {
+                    const count = clusterCounts[c];
+                    const hasSus = !!clusterHasSuspected[c];
+                    const labelText = hasSus
+                        ? `Cluster ${c} (${count}) ⚠`
+                        : `Cluster ${c} (${count})`;
+                    // buat option, set data-suspected supaya CSS bisa target
+                    const $opt = $("<option>")
+                        .val(c)
+                        .text(labelText)
+                        .attr("data-suspected", hasSus ? "1" : "0");
+                    $("#clusterFilter").append($opt);
+                    });
+
+                    // Event filter cluster
                     $("#clusterFilter").on("change", function () {
-                    let val = $(this).val();
+                    const val = $(this).val();
                     if (val) {
-                        table.column(5).search("^" + val + "$", true, false).draw();
+                        table
+                        .column(5)
+                        .search("^" + val + "$", true, false)
+                        .draw();
                     } else {
                         table.column(5).search("").draw();
                     }
                     });
 
-                    // --- Filter Label ---
+                    // Event filter label
                     $("#labelFilter").on("change", function () {
-                    let val = $(this).val();
+                    const val = $(this).val();
                     if (val) {
-                        table.column(6).search("^" + val + "$", true, false).draw();
+                        table
+                        .column(6)
+                        .search("^" + val + "$", true, false)
+                        .draw();
                     } else {
                         table.column(6).search("").draw();
                     }

@@ -1,8 +1,5 @@
-import os
 import re
-import sys
 import codecs
-import argparse
 import urllib.parse
 import base64
 import pandas as pd
@@ -204,10 +201,8 @@ def parse_dec_file_to_dataframe(in_path):
     Versi optimasi yang memproses validasi bot secara paralel.
     """
     
-    # --- Tahap 1: Parsing Cepat & Kumpulkan Data Mentah serta Kandidat Bot ---
-    
     all_parsed_records = []
-    bots_to_validate = set() # Menggunakan set untuk otomatis menangani duplikasi
+    bots_to_validate = set() 
     
     with open(in_path, 'r', encoding='utf-8', errors='replace') as in_file:
         for no, line in enumerate(in_file, 1):
@@ -217,20 +212,15 @@ def parse_dec_file_to_dataframe(in_path):
             
             fields['no'] = no
             all_parsed_records.append(fields)
-            
-            # Cek apakah ini kandidat bot yang perlu divalidasi?
-            # Logika sederhana: jika user_agent mengandung kata 'bot'
+                   
             if 'bot' in fields['user_agent'].lower():
                 bots_to_validate.add((fields['ip'], fields['user_agent']))
-
-    # --- Tahap 2: Validasi Semua Kandidat Bot Secara Paralel ---
+    
     
     verified_ips = set()
     unique_bots_to_validate = list(bots_to_validate)
-    
-    # MAX_WORKERS bisa disesuaikan, 16 adalah nilai awal yang baik
+        
     with ThreadPoolExecutor(max_workers=16) as executor:
-        # Buat future untuk setiap tugas validasi
         future_to_bot = {executor.submit(is_valid_bot, ip, ua): (ip, ua) for ip, ua in unique_bots_to_validate}
         
         for future in as_completed(future_to_bot):
@@ -241,12 +231,10 @@ def parse_dec_file_to_dataframe(in_path):
                     verified_ips.add(ip)
             except Exception as exc:
                 print(f'Validasi untuk IP {ip} menghasilkan error: {exc}')
-
-    # --- Tahap 3: Filtering Cepat Menggunakan Hasil Validasi & Membuat DataFrame ---
+    
     
     final_records = []
     for fields in all_parsed_records:
-        # Filter: Hanya simpan record jika IP-nya TIDAK ADA di dalam set bot yang terverifikasi
         if fields['ip'] not in verified_ips:
             final_records.append(fields)
             
@@ -262,44 +250,3 @@ def parse_dec_file_to_dataframe(in_path):
     df.dropna(subset=['time'], inplace=True)
     
     return df
-
-def parse_dec_file_to_csv(in_path, out_path):
-    """
-    Decode and clean all entries in a log file and export them to a CSV file.
-
-    Each parsed line is decoded, bot-filtered, and converted into structured tabular data.
-    Adds a line number ('no') to each entry for traceability.
-    Time fields are parsed as datetime objects in UTC.
-
-    Args:
-        in_path (str): Path to the input raw log file.
-        out_path (str): Path to the resulting CSV file.
-    """
-    df = parse_dec_file_to_dataframe(in_path)
-    df.to_csv(out_path, index=False)
-
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="NGINX log decoder.")
-    parser.add_argument("in_file", help="NGINX log file")
-    parser.add_argument("out_file", help="The decoded NGINX log file")
-    parser.add_argument("--csv", action="store_true", help="Save the output in CSV format.")
-
-    # Parse the arguments
-    args = parser.parse_args()
-
-    if not os.path.exists(args.in_file):
-        print(f"❌ File not found: '{args.in_file}'")
-        sys.exit(1)
-    
-    out_dir = os.path.dirname(args.out_file)
-    if out_dir and not os.path.exists(out_dir):
-        print(f"❌ Output directory is not found: '{out_dir}'")
-        sys.exit(1)
-    
-    if args.csv:
-        parse_dec_file_to_csv(args.in_file, args.out_file)
-    else:
-        parse_dec_file(args.in_file, args.out_file)
-    
-    print(f"✅ Log file successfully converted to {args.out_file}")
