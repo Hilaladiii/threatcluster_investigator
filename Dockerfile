@@ -31,7 +31,6 @@ COPY --from=builder /opt/venv /opt/venv
 # Salin KODE APLIKASI dan DATA Anda
 COPY ./helper ./helper
 COPY main.py .
-COPY access_log_clean.parquet .
 
 # Atur PATH agar container menggunakan Python dari virtual environment
 ENV PATH="/opt/venv/bin:$PATH"

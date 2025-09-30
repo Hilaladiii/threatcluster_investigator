@@ -55,12 +55,25 @@ def generate_report():
             <div class="card">
                 <h3 class="text-center mb-4">📊 Hasil Clustering</h3>
 
+                <!-- Filter container -->
+                <div class="filter-container d-flex">
                 <!-- Filter cluster -->
-                <div class="filter-container d-flex justify-content-end">
-                <label class="me-2">Filter Cluster:</label>
-                <select id="clusterFilter" class="form-select w-auto">
+                <div class="d-flex">
+                    <label class="me-2">Filter Cluster:</label>
+                    <select id="clusterFilter" class="form-select w-auto">
                     <option value="">Semua</option>
-                </select>
+                    </select>
+                </div>
+
+                <!-- Filter label -->
+                <div class="d-flex">
+                    <label class="me-2">Filter Label:</label>
+                    <select id="labelFilter" class="form-select w-auto">
+                    <option value="">Semua</option>
+                    <option value="Normal">Normal</option>
+                    <option value="Suspected_As_An_Attack">Suspected_As_An_Attack</option>
+                    </select>
+                </div>
                 </div>
 
                 <div class="table-responsive">
@@ -111,25 +124,32 @@ def generate_report():
                     scrollX: true,
                     });
 
-                    // Ambil semua nilai unik cluster dari data CSV
+                    // --- Filter Cluster ---
                     let clusters = [...new Set(results.data.map((row) => row.cluster))].filter(
                     (c) => c !== undefined && c !== ""
                     );
-
-                    // Tambahkan ke dropdown filter
                     clusters.forEach((c) => {
                     $("#clusterFilter").append(
                         `<option value="${c}">Cluster ${c}</option>`
                     );
                     });
 
-                    // Event filter cluster
                     $("#clusterFilter").on("change", function () {
                     let val = $(this).val();
                     if (val) {
                         table.column(5).search("^" + val + "$", true, false).draw();
                     } else {
                         table.column(5).search("").draw();
+                    }
+                    });
+
+                    // --- Filter Label ---
+                    $("#labelFilter").on("change", function () {
+                    let val = $(this).val();
+                    if (val) {
+                        table.column(6).search("^" + val + "$", true, false).draw();
+                    } else {
+                        table.column(6).search("").draw();
                     }
                     });
                 },

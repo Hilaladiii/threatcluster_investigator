@@ -216,10 +216,7 @@ if __name__ == "__main__":
     ]['ip'].unique())
     df.loc[df['ip'].isin(suspicious_ips), 'label'] = 'Suspected_As_An_Attack'
 
-    print("Proses Post Clustering Selesai")
-
-    row = df[df['url'].str.contains("login.php", case=False)]
-    print(row[['ip','url','cluster','label','pathname_requests_per_sec','attack_pattern_count']])
+    print("Proses Post Clustering Selesai")    
 
     # FORMATTING OUTPUT ANOMALY CLUSTER
     output_columns = [
