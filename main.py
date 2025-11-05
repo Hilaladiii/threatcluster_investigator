@@ -155,8 +155,7 @@ if __name__ == "__main__":
     df = df.drop(columns=['keep_row', 'generalized_pathname', 'dummy_count', 'pathname_code', 'time_sec'], errors='ignore') 
     
         
-    df = df.sort_values('time').reset_index(drop=True)    
-    df.to_csv("reduction2_log_10jt.csv")
+    df = df.sort_values('time').reset_index(drop=True)        
 
     reduction_end_time = time.time() 
     reduction_execution_time = reduction_end_time - reduction_time
@@ -224,8 +223,7 @@ if __name__ == "__main__":
             ""     
         )
     )
-    df['url_prepped_for_bert'] = df['bert_prefix'] + ' ' + df['url_prepped']    
-    df["url_prepped_for_bert"].to_csv("url_bert")
+    df['url_prepped_for_bert'] = df['bert_prefix'] + ' ' + df['url_prepped']        
 
     list_of_urls = df['url_prepped_for_bert'].tolist()
     url_vectors = get_sentence_bert_vector(list_of_urls) 
@@ -362,12 +360,12 @@ if __name__ == "__main__":
 
     df['label'] = 'Normal'
     df['is_rule_anomaly'] = df['attack_pattern_count'].apply(lambda x: x > 0)
-    df.loc[df['is_rule_anomaly'], 'label'] = "Suspected_As_An_Attack(Detected By Pettern)"
+    df.loc[df['is_rule_anomaly'], 'label'] = "Suspected_As_An_Attack"
 
-    df.loc[df['is_script_or_scanner'] == 1,'label'] = 'Suspected_As_An_Attack(Script)'
+    df.loc[df['is_script_or_scanner'] == 1,'label'] = 'Suspected_As_An_Attack'
 
     DDOS_PER_SEC_THRESHOLD = 100
-    df.loc[df['pathname_requests_per_sec'] > DDOS_PER_SEC_THRESHOLD, 'label'] = 'Suspected_As_An_Attack(DDOS)'
+    df.loc[df['pathname_requests_per_sec'] > DDOS_PER_SEC_THRESHOLD, 'label'] = 'Suspected_As_An_Attack'
 
     cluster_stats = df.groupby('cluster').agg(
         cluster_size=('cluster', 'count'),
@@ -376,10 +374,10 @@ if __name__ == "__main__":
     ).reset_index()
 
     scanner_clusters = cluster_stats[(cluster_stats['cluster_size'] > 1000) & (cluster_stats['avg_unique_pathnames'] > 50)]['cluster']
-    df.loc[df['cluster'].isin(scanner_clusters), 'label'] = 'Suspected_As_An_Attack(Scanner)'
+    df.loc[df['cluster'].isin(scanner_clusters), 'label'] = 'Suspected_As_An_Attack'
 
     bruteforce_clusters = cluster_stats[(cluster_stats['cluster_size'] > 1000) & (cluster_stats['avg_unique_pathnames'] <= 2) & (cluster_stats['avg_req_rate'] > 50)]['cluster']
-    df.loc[df['cluster'].isin(bruteforce_clusters), 'label'] = 'Suspected_As_An_Attack(Brute Force)'
+    df.loc[df['cluster'].isin(bruteforce_clusters), 'label'] = 'Suspected_As_An_Attack'
 
     cluster_sizes = df['cluster'].value_counts()
     rarity_clusters = cluster_sizes[cluster_sizes <= 1].index
@@ -389,13 +387,13 @@ if __name__ == "__main__":
         (df['status'] >= 400) &
     (df['attack_pattern_count'] > 0),
         'label'
-    ] = 'Suspected_As_An_Attack(Rare)'
+    ] = 'Suspected_As_An_Attack'
 
     suspicious_ips = set(df[
         (df['label'] == 'Suspected_As_An_Attack') & 
         (df["pathname_requests_per_sec"] > DDOS_PER_SEC_THRESHOLD)
     ]['ip'].unique())
-    df.loc[df['ip'].isin(suspicious_ips), 'label'] = 'Suspected_As_An_Attack(SUS IPS)'
+    df.loc[df['ip'].isin(suspicious_ips), 'label'] = 'Suspected_As_An_Attack'
 
     print("Proses Post Clustering Selesai")    
 

@@ -4,4 +4,6 @@ numpy
 scipy
 matplotlib
 pyarrow
+sentence-transformers
+fastcluster
 torch

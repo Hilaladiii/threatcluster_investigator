@@ -3,7 +3,7 @@ import os
 def generate_report():    
     os.makedirs("output", exist_ok=True)
     
-    output_path = os.path.join("output", "report.html")
+    output_path = os.path.join("output", "index.html")
     with open(output_path, "w", encoding="utf-8") as f:
         html_content = """
 <!DOCTYPE html>
