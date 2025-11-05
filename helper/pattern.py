@@ -1,7 +1,7 @@
 attack_patterns = {
-     'Parameter_Injection': [        
-        r"(jsonList|/api/|graphql).*(filter|columns|data|query)=\[.*\{"
-    ],
+    #  'Parameter_Injection': [        
+    #     r"(jsonList|/api/|graphql).*(filter|columns|data|query)=\[.*\{"
+    # ],
     'SQLi': [        
         r"UNION\s+(ALL\s+)?SELECT",
         r"(SELECT.*FROM.*information_schema)",
@@ -32,7 +32,7 @@ attack_patterns = {
         r"document\.(cookie|domain)"
     ],
     'SSTI': [
-        r"\{\{.*\}\}",
+        r"\{\{.*(select|union|config|class|self|lipsum|cycler|joiner|[+\-*\/_\[\]'\"0-9\s]).*\}\}",
         r"(\$=|\$ Dollar Sign)%7B",
     ],
     'Path_Traversal': [
@@ -41,18 +41,24 @@ attack_patterns = {
         r"(%252e|%2e%252e|%252e%2e)(%252f|%2f%252f)"
     ],
     'CMD_Injection': [
-        r"\b(ls|cat|whoami)\b", 
-        r"([;&|]|\?.*=|&.*=).*\b(ping|wget|curl|nmap|net)\b",
-        r"(=|%3D|%253D).*(whoami|net(\s|%20|\+|%2B)user|cmd(\s|%20|\+|%2B)\/[ckr]|powershell|tasklist|wmic|ssh|python3?|ipconfig|wget|curl|certutil|copy(\s|%20|%2B)\\%5C\%5C|dsquery|nltest)"
+        r"(=|%3D|%253D).*(%20|\+|\s)(ls|cat|whoami)\b",
+        r"([;&|]|\?.*=|&.*=).*\b(nmap|net)\b",
+        r"(=|%3D|%253D).*(whoami|net(\s|%20|\+|%2B)user|cmd(\s|%20|\+|%2B)\/[ckr]|powershell|tasklist|wmic|ssh|python3?|ipconfig|certutil|copy(\s|%20|%2B)\\%5C\%5C|dsquery|nltest)"
     ],
     'File_Inclusion': [
         r"php://",
         r"file://"
     ],
     'Sensitive_File': [
-        r"\.git/config", r"\.env", r"web\.config"
+        r"\.git/config", r"\.env", r"web\.config", r"/mysql\.conf", r"/\.aws/config"
     ]
 }
 
 def get_attack_pattern(): 
     return attack_patterns
+
+def get_first_attack_type(url_str,compiled_patterns_dict):
+    for attack_type, compiled_regex in compiled_patterns_dict.items():        
+        if compiled_regex.search(url_str):
+            return attack_type.lower()    
+    return ""

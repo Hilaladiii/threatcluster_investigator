@@ -2,6 +2,7 @@ import re
 import torch
 from urllib.parse import urlparse, unquote
 from transformers import BertTokenizer, BertModel
+from sentence_transformers import SentenceTransformer
 import collections
 import math
 
@@ -18,37 +19,34 @@ def replace_number(df,key):
     """
     return df[key].str.replace(r'\d+', '<NUM>', regex=True)
 
-def split_url_tokens(url):
-    """Tokenisasi URL dengan memisahkan path dan query string."""
-    parsed = urlparse(url)
-    path = unquote(parsed.path)
-    query = unquote(parsed.query)
-    delimiters = r"[\/\-\_\=\&\?\.\+\(\)\[\]\<\>\{\}]"
-    tokens = re.split(delimiters, path.strip("/")) + re.split(delimiters, query)
-    return " ".join([tok for tok in tokens if tok])
-
-
-model_name = 'bert-base-multilingual-cased'
-tokenizer = BertTokenizer.from_pretrained(model_name)
-model = BertModel.from_pretrained(model_name)
-
-def get_bert_vector_tf(text, is_split=False):
+def replace_lang(df, key):
     """
-    Mengambil vektor embedding [CLS] dari sebuah teks menggunakan model TensorFlow.
-    """    
-    inputs = tokenizer(
-        text, 
-        return_tensors="pt", 
-        truncation=True, 
-        padding=True, 
-        max_length=128,
-        is_split_into_words=is_split
-    )
+    Melakukan generalisasi pada urutan karakter non-ASCII dalam kolom yang ditentukan.
+
+    Args:
+        df (pd.DataFrame): DataFrame yang berisi kolom teks.
+        key (str): Kunci (nama) dari kolom yang akan diproses.
+
+    Returns:
+        pd.Series: Sebuah pandas Series dengan urutan karakter non-ASCII 
+                   diganti menjadi '<LANG>'.
+    """
+    # Regex ini mencari satu atau lebih karakter ([...]+) yang BUKAN (^)
+    # bagian dari rentang ASCII standar (\x00-\x7F).
+    non_ascii_regex = r'[^\x00-\x7F]+'
     
-    with torch.no_grad():
-        outputs = model(**inputs)
-    
-    vector = outputs.last_hidden_state[:, 0, :].squeeze()
+    return df[key].str.replace(non_ascii_regex, '<LANG>', regex=True)
+
+model_name_2 = 'all-MiniLM-L6-v2'
+model_2 = SentenceTransformer(model_name_2)
+
+def get_sentence_bert_vector(text):
+    """
+    Mengambil vektor embedding dari sebuah teks menggunakan SentenceTransformer.
+    Inputnya adalah string mentah, tidak perlu di-split.
+    """
+    # .encode() adalah fungsi utama untuk membuat vektor
+    vector = model_2.encode(text, convert_to_tensor=False)
     return vector
 
 def calculate_entropy(s):
