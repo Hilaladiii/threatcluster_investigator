@@ -1,7 +1,14 @@
 import os
+from halo import Halo
 
-def generate_report():    
+def generate_report(df):    
+    output_columns = [
+    'ip', 'time', 'status', 'url','url_prepped','user_agent','cluster',"label"
+    ]  
+
     os.makedirs("output", exist_ok=True)
+    output_path = os.path.join('output', "report.csv")
+    df[output_columns].sort_values(by=['cluster']).to_csv(output_path, index=False)    
     
     output_path = os.path.join("output", "index.html")
     with open(output_path, "w", encoding="utf-8") as f:
@@ -358,6 +365,6 @@ def generate_report():
 </body>
 </html>
         """
-        f.write(html_content)
-
-    print(f"Report berhasil dibuat di: {output_path}")
+        f.write(html_content)    
+    spinner_report = Halo()
+    spinner_report.succeed(f"Report berhasil dibuat di: {output_path}")

@@ -1,8 +1,10 @@
 from urllib.parse import urlparse
 from sentence_transformers import SentenceTransformer
+from halo import Halo
 import collections
 import math
 import torch
+import time
 
 def replace_number(df,key):
     """
@@ -35,12 +37,16 @@ def replace_lang(df, key):
     
     return df[key].str.replace(non_ascii_regex, '<LANG>', regex=True)
 
+spinner = Halo(text='Mendeteksi perangkat komputasi...', spinner='dots')
+spinner.start()
+time.sleep(0.5)
+
 if torch.cuda.is_available() :
     device = "cuda"
-    print("Vectorization using GPU")
+    spinner.succeed("Vectorization using GPU")
 else : 
     device = "cpu"
-    print("Vectorization using CPU")
+    spinner.succeed("Vectorization using CPU")    
 
 model_name_2 = 'all-MiniLM-L6-v2'
 model_2 = SentenceTransformer(model_name_2, device=device)

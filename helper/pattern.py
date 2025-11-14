@@ -35,8 +35,7 @@ attack_patterns = {
         r"\{\{.*(select|union|config|class|self|lipsum|cycler|joiner|[+\-*\/_\[\]'\"0-9\s]).*\}\}",
         r"(\$=|\$ Dollar Sign)%7B",
     ],
-    'Path_Traversal': [
-        r"(\.\./|..%2f|..\\|..%c0%af|..%252f){3,}",        
+    'Path_Traversal': [        
         r"(\.\./|..%2f|..\\).*(etc/passwd|windows/win|win\.ini|lib/password)",        
         r"(%252e|%2e%252e|%252e%2e)(%252f|%2f%252f)"
     ],

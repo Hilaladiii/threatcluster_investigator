@@ -7,3 +7,4 @@ pyarrow
 sentence-transformers
 fastcluster
 torch
+halo
