@@ -21,9 +21,12 @@ if __name__ == "__main__":
     parser.add_argument("--logfile", type=str, required=True, help="Path ke log file")
     args = parser.parse_args()    
     logfile = args.logfile
-    
-    # TENTUKAN TARGET UKURAN DATA ANDA DI SINI
+        
     TARGET_DATA_SIZE = 40000
+
+    # ==============================================================================
+    # FILTERING VALID BOT
+    # ==============================================================================    
 
     spinner = Halo(text='Filtering LOG BOT...', spinner='dots')
     spinner.start()    
@@ -34,11 +37,10 @@ if __name__ == "__main__":
     bot_end_time = time.time() 
     bot_execution_time = bot_end_time - bot_time
     
-    spinner.succeed(f"Filtering LOG BOT Selesai. Waktu yang dibutuhkan: {bot_execution_time:.2f} detik.")
-    
+    spinner.succeed(f"Filtering LOG BOT Selesai. Waktu yang dibutuhkan: {bot_execution_time:.2f} detik.")    
 
     # ==============================================================================
-    # FEATURE ENGINEERING AWAL (Untuk Aturan & Reduksi)
+    # INITIAL FEATURE ENGINEERING 
     # ==============================================================================    
     spinner_first_fe = Halo(text='Memulai Proses Feature Engineering Fase Awal', spinner='dots')
     spinner_first_fe.start()
@@ -71,7 +73,7 @@ if __name__ == "__main__":
         df['pathname_requests_per_sec'] = requests_per_second
     except Exception as e:
         df['pathname_requests_per_sec'] = 1
-    
+        
     df['pathname_requests_per_sec'] = np.where(
         df['attack_pattern_count'] > 0, 
         1,  
@@ -84,18 +86,19 @@ if __name__ == "__main__":
     spinner_first_fe.succeed(f"Feature Engineering Fase Awal Selesai. Waktu yang dibutuhkan: {first_fe_execution_time:.2f} detik")
 
     # ==============================================================================
-    # REDUKSI DATA 
+    # DATA REDUCTION
     # ==============================================================================
+
     spinner_reduction = Halo(text='Memulai Proses Reduksi Data', spinner='dots')
     spinner_reduction.start()
     
     reduction_time = time.time()
     
-    DDOS_PER_SEC_THRESHOLD = 100
+    RPS_THRESHOLD = 100
     df['keep_row'] = (
         (df['attack_pattern_count'] > 0) |
         (df['is_script_or_scanner'] == 1) |
-        (df['pathname_requests_per_sec'] > DDOS_PER_SEC_THRESHOLD)     
+        (df['pathname_requests_per_sec'] > RPS_THRESHOLD)     
     )
 
     df["generalized_pathname"] = df["pathname"].astype(str)
@@ -157,8 +160,9 @@ if __name__ == "__main__":
     spinner_reduction.succeed(f"\nUkuran data final untuk diproses: {len(df)} baris. Waktu yang dibutuhkan: {reduction_execution_time:.2f} detik")
     
     # ==============================================================================
-    # FEATURE ENGINEERING LENGKAP 
+    # FINAL FEATURE ENGINEERING 
     # ==============================================================================    
+    
     spinner_last_fe = Halo(text='Memulai Feature Engineering Fase Akhir Reduksi Data', spinner='dots')
     spinner_last_fe.start()
 
@@ -216,8 +220,8 @@ if __name__ == "__main__":
         df['attack_type'] != "", 
         df['attack_type'],           
         np.where(
-            df['pathname_requests_per_sec'] > DDOS_PER_SEC_THRESHOLD,
-            "ddos", 
+            df['pathname_requests_per_sec'] > RPS_THRESHOLD,
+            "rpsh", 
             ""     
         )
     )
@@ -240,9 +244,12 @@ if __name__ == "__main__":
         df_v = pd.DataFrame(df[col].tolist(), index=df.index).add_prefix(f'{col}_')
         vector_dfs.append(df_v)
 
-    df_features = pd.concat([df[numerical_features]] + vector_dfs, axis=1)    
+    df_features = pd.concat([df[numerical_features]] + vector_dfs, axis=1)        
 
-    # STANDARITATION & PCA    
+    # ==============================================================================
+    # STANDARITATION & PCA
+    # ==============================================================================        
+
     spinner_pca = Halo(text="Memulai Standarisasi dan PCA", spinner="dots")
     spinner_pca.start()
 
@@ -250,12 +257,11 @@ if __name__ == "__main__":
         ('scaler', StandardScaler()),
         ('pca', PCA(n_components=0.95))
     ])
-    features_processed = pipeline.fit_transform(df_features)
-    
+    features_processed = pipeline.fit_transform(df_features)                
     spinner_pca.succeed("Proses Standarisasi dan PCA Selesai")
     
     # ==============================================================================
-    # CLUSTERING PROCESS FINAL
+    # CLUSTERING 
     # ==============================================================================    
     spinner_clustering = Halo(text="Memulai Komputasi Agglomerative Clustering", spinner="dots")
     spinner_clustering.start()
@@ -265,7 +271,7 @@ if __name__ == "__main__":
     labels_true = np.where(
         (df['attack_pattern_count'] > 0) |
         (df['is_script_or_scanner'] == 1) |
-        (df['pathname_requests_per_sec'] > DDOS_PER_SEC_THRESHOLD),
+        (df['pathname_requests_per_sec'] > RPS_THRESHOLD),
         1, 
         0 
     )
@@ -290,7 +296,7 @@ if __name__ == "__main__":
     spinner_clustering.succeed(f"Proses Komputasi Selesai. Waktu yang dibutuhkan: {execution_time:.2f} detik")
     
     # ==============================================================================
-    # 4. EVALUASI METRIK EKSTERNAL 
+    # EXTERNAL METRIC EVALUATION
     # ==============================================================================
 
     print("\n--- Mengevaluasi Performa Deteksi Serangan (Validasi Eksternal) ---")
@@ -332,25 +338,20 @@ if __name__ == "__main__":
     df.loc[df['cluster'].isin(scanner_clusters), 'label'] = 'Suspected_As_An_Attack'
 
     bruteforce_clusters = cluster_stats[(cluster_stats['cluster_size'] > 1000) & (cluster_stats['avg_unique_pathnames'] <= 2) & (cluster_stats['avg_req_rate'] > 50)]['cluster']
-    df.loc[df['cluster'].isin(bruteforce_clusters), 'label'] = 'Suspected_As_An_Attack'
-
-    cluster_sizes = df['cluster'].value_counts()
-    rarity_clusters = cluster_sizes[cluster_sizes <= 1].index
-    df.loc[
-        (df['label'] == 'Normal') &
-        (df['cluster'].isin(rarity_clusters)) &
-        (df['status'] >= 400) &
-    (df['attack_pattern_count'] > 0),
-        'label'
-    ] = 'Suspected_As_An_Attack'
+    df.loc[df['cluster'].isin(bruteforce_clusters), 'label'] = 'Suspected_As_An_Attack'    
 
     suspicious_ips = set(df[
         (df['label'] == 'Suspected_As_An_Attack') & 
         (df["pathname_requests_per_sec"] > DDOS_PER_SEC_THRESHOLD)
     ]['ip'].unique())
     df.loc[df['ip'].isin(suspicious_ips), 'label'] = 'Suspected_As_An_Attack'
+    columns = ["url","attack_pattern_count","pathname_requests_per_sec","request_count_1min","unique_pathname_count_1min"]
+    df[columns].to_csv("after_post_clustering.csv")
     
     spinner_post_clustering.succeed("Proses Post Clustering Selesai")
 
-    # GENERATE REPORT
+    # ==============================================================================
+    # REPORTING
+    # ==============================================================================
+    
     generate_report(df)
